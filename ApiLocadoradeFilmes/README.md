@@ -2,6 +2,9 @@
 
 API REST minimalista para gerenciamento de filmes, desenvolvida com ASP.NET Core e .NET como trabalho de avaliação da cadeira de Desenvolvimento Backend.
 
+## Link do video de demonstração
+https://drive.google.com/drive/folders/18u0DU9uaRU_2mjAJq-jIQOqGIs2VIx9W?usp=sharing
+
 ## Requisitos
 
 * .NET SDK 10.0 ou superior
