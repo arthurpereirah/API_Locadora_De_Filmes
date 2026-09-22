@@ -1,6 +1,11 @@
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<ApiDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 var app = builder.Build();
 
 //lista de filmes inicial do projeto
@@ -70,6 +75,23 @@ app.MapDelete("/api/locadoradefilmes/{id:int}", (int id) =>
 
 
 app.Run();
+
+class FilmeEntity
+{
+    public int Id { get; set; }
+    public string Titulo { get; set; } = string.Empty;
+    public string Genero { get; set; } = string.Empty;
+    public bool Disponivel { get; set; }
+}
+
+class ApiDbContext : DbContext
+{
+    public ApiDbContext(DbContextOptions<ApiDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<FilmeEntity> Filmes => Set<FilmeEntity>();
+}
 
 record Filme(int Id, string Titulo,string Genero, bool Disponivel);
 
