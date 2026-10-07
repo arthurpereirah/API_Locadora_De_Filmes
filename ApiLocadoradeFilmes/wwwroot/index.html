@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Locadora de Filmes - Demonstração</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Cabeçalho Principal -->
+  <header class="header">
+    <div class="container header-content">
+      <div class="logo-area">
+        <span class="logo-icon" aria-hidden="true">🎬</span>
+        <div>
+          <h1 class="logo-title">CineLocadora</h1>
+          <p class="logo-subtitle">Painel de Demonstração de Filmes</p>
+        </div>
+      </div>
+      <div class="demo-tag" role="note" aria-label="Aviso de demonstração">
+        <span class="status-dot"></span> Modo Demonstração (Sem Conexão com API)
+      </div>
+    </div>
+  </header>
+
+  <!-- Banner Informativo de Contexto de Demonstração -->
+  <div class="demo-banner">
+    <div class="container demo-banner-content">
+      <span class="banner-icon" aria-hidden="true">ℹ️</span>
+      <p>
+        <strong>Ambiente de Demonstração Visual:</strong> Todas as operações (visualizar, adicionar, atualizar e deletar)
+        ocorrem apenas na memória do navegador utilizando dados fictícios locais. Nenhuma requisição é enviada ao backend.
+      </p>
+    </div>
+  </div>
+
+  <!-- Conteúdo Principal -->
+  <main class="container main-layout">
+    
+    <!-- Região de Alertas e Notificações Acessíveis -->
+    <div id="alert-container" class="alert-container" role="status" aria-live="polite"></div>
+
+    <!-- Seção de Formulário CRUD -->
+    <section class="card form-section" aria-labelledby="form-heading">
+      <div class="card-header">
+        <h2 id="form-heading" class="card-title">Cadastrar Novo Filme</h2>
+        <span id="form-mode-badge" class="mode-badge mode-novo">Novo Cadastro</span>
+      </div>
+      <div class="card-body">
+        <form id="filme-form" novalidate>
+          
+          <!-- ID Simulado -->
+          <div class="form-group">
+            <label for="filme-id">ID do Filme</label>
+            <input 
+              type="text" 
+              id="filme-id" 
+              name="filme-id" 
+              class="form-control input-readonly" 
+              value="Automático (Modo Demonstração)" 
+              readonly 
+              aria-describedby="filme-id-help"
+            >
+            <small id="filme-id-help" class="form-help">O identificador é gerado ou exibido automaticamente na simulação.</small>
+          </div>
+
+          <!-- Título -->
+          <div class="form-group">
+            <label for="filme-titulo">Título do Filme <span class="required" aria-hidden="true">*</span></label>
+            <input 
+              type="text" 
+              id="filme-titulo" 
+              name="filme-titulo" 
+              class="form-control" 
+              placeholder="Ex.: Interestelar" 
+              required 
+              autocomplete="off"
+            >
+            <small id="filme-titulo-erro" class="form-error" aria-live="polite"></small>
+          </div>
+
+          <!-- Gênero -->
+          <div class="form-group">
+            <label for="filme-genero">Gênero <span class="required" aria-hidden="true">*</span></label>
+            <input 
+              type="text" 
+              id="filme-genero" 
+              name="filme-genero" 
+              class="form-control" 
+              placeholder="Ex.: Comédia, Drama, Ficção Científica" 
+              required 
+              autocomplete="off"
+            >
+            <small id="filme-genero-erro" class="form-error" aria-live="polite"></small>
+          </div>
+
+          <!-- Status de Disponibilidade (Disponível ou Indisponível) -->
+          <div class="form-group">
+            <label for="filme-disponivel">Status de Disponibilidade</label>
+            <select id="filme-disponivel" name="filme-disponivel" class="form-control">
+              <option value="true">Disponível</option>
+              <option value="false">Indisponível</option>
+            </select>
+            <small class="form-help">Selecione se o filme está disponível para locação imediata.</small>
+          </div>
+
+          <!-- Ações do Formulário -->
+          <div class="form-actions">
+            <button type="submit" id="btn-submit" class="btn btn-primary">
+              <span class="btn-icon" aria-hidden="true">➕</span>
+              <span id="btn-submit-text">Adicionar Filme</span>
+            </button>
+            <button type="button" id="btn-cancel" class="btn btn-secondary" style="display: none;">
+              Cancelar Edição
+            </button>
+            <button type="button" id="btn-reset" class="btn btn-outline">
+              Limpar Campos
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Seção da Listagem de Filmes -->
+    <section class="card list-section" aria-labelledby="list-heading">
+      <div class="card-header list-header">
+        <div>
+          <h2 id="list-heading" class="card-title">Catálogo de Filmes</h2>
+          <p class="card-subtitle">Exibição de dados fictícios para demonstração da interface</p>
+        </div>
+        <div class="header-stats">
+          <span id="filmes-total" class="stat-badge">Total: 0</span>
+        </div>
+      </div>
+      
+      <div class="card-body">
+        <!-- Barra de Busca / Filtro Local -->
+        <div class="filter-bar">
+          <label for="busca-input" class="sr-only">Filtrar filmes por título ou gênero</label>
+          <div class="search-input-wrapper">
+            <span class="search-icon" aria-hidden="true">🔍</span>
+            <input 
+              type="search" 
+              id="busca-input" 
+              class="form-control search-input" 
+              placeholder="Buscar por título ou gênero..."
+              autocomplete="off"
+            >
+          </div>
+          <button type="button" id="btn-limpar-busca" class="btn btn-outline btn-sm">Limpar Filtro</button>
+        </div>
+
+        <!-- Tabela Responsiva de Filmes -->
+        <div class="table-responsive" tabindex="0" role="region" aria-label="Tabela de filmes cadastrados com rolagem horizontal se necessário">
+          <table class="data-table" id="tabela-filmes">
+            <thead>
+              <tr>
+                <th scope="col" class="th-id">ID</th>
+                <th scope="col" class="th-titulo">Título</th>
+                <th scope="col" class="th-genero">Gênero</th>
+                <th scope="col" class="th-status">Status</th>
+                <th scope="col" class="th-acoes">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="filmes-tbody">
+              <!-- Renderizado dinamicamente pelo app.js -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Estado Vazio (quando não houver filmes ou o filtro zerar) -->
+        <div id="empty-state" class="empty-state" style="display: none;">
+          <span class="empty-icon" aria-hidden="true">🎞️</span>
+          <p class="empty-text" id="empty-message">Nenhum filme encontrado.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Rodapé -->
+  <footer class="footer">
+    <div class="container footer-content">
+      <p>CineLocadora &mdash; Interface de Demonstração (AP1)</p>
+      <p class="footer-note">Desenvolvido com HTML, CSS e JavaScript puros &bull; Sem dependências ou conexão com API</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

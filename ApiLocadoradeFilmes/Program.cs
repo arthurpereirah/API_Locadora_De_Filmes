@@ -20,15 +20,16 @@ var filmes = new List<Filme>
 app.MapGet("/", () => "Api de locadora de filmes está no ar!");
 
 // listar todos os filmes cadastrados
-app.MapGet("/api/locadoradefilmes", () =>
+app.MapGet("/api/locadoradefilmes", async (ApiDbContext db) =>
 {
+    var filmes = await db.Filmes.ToListAsync();
     return Results.Ok(filmes);
 });
 
 // listar um filme pelo id
-app.MapGet("/api/locadoradefilmes/{id:int}", (int id) =>
+app.MapGet("/api/locadoradefilmes/{id:int}", async (int id, ApiDbContext db) =>
 {
-    var filmeEncontrado = filmes.Find(filme => filme.Id == id);
+    var filmeEncontrado = db.Filmes.Find(id);   
     if (filmeEncontrado is null)
     {
         return Results.NotFound();
@@ -38,12 +39,16 @@ app.MapGet("/api/locadoradefilmes/{id:int}", (int id) =>
 );
 
 //Adicionar um novo filme
-app.MapPost("/api/locadoradefilmes", (FilmeDto filmeDto) =>
+app.MapPost("/api/locadoradefilmes", async (FilmeEntity filmeDto, ApiDbContext db) =>
 {
-    int novoId = filmes.Count +1;
-    var novoFilme = new Filme(novoId, filmeDto.Titulo, filmeDto.Genero, true);
-    filmes.Add(novoFilme);
-    return Results.Created($"/api/locadoradefilmes/{novoFilme.Id}", novoFilme);
+    
+    //var novoFilme = new Filme(novoId, filmeDto.Titulo, filmeDto.Genero, true);
+
+    //salvando em memoria e preparando para salvar em banco de dados
+    db.Filmes.Add(filmeDto);
+    //salvando no banco de dados
+    await db.SaveChangesAsync();
+    return Results.Created($"/api/locadoradefilmes/{filmeDto.Id}", filmeDto);
 });
 
 //Atualizar um filme
@@ -81,7 +86,7 @@ class FilmeEntity
     public int Id { get; set; }
     public string Titulo { get; set; } = string.Empty;
     public string Genero { get; set; } = string.Empty;
-    public bool Disponivel { get; set; }
+    public bool Disponivel { get; set; } = true;
 }
 
 class ApiDbContext : DbContext
