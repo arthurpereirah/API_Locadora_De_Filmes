@@ -3,21 +3,18 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors();
+
 builder.Services.AddDbContext<ApiDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
 
-//lista de filmes inicial do projeto
-var filmes = new List<Filme>
-{
-    new Filme(1,"As branquelas", "Comedia", true),
-    new Filme(2,"O poderoso chefão", "Drama", true),
-    new Filme(3,"Ponyo","Animação", false),
-};
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 //tela inicial da api ao rodar o projeto
-app.MapGet("/", () => "Api de locadora de filmes está no ar!");
+//app.MapGet("/", () => "Api de locadora de filmes está no ar!");
 
 // listar todos os filmes cadastrados
 app.MapGet("/api/locadoradefilmes", async (ApiDbContext db) =>
@@ -29,6 +26,7 @@ app.MapGet("/api/locadoradefilmes", async (ApiDbContext db) =>
 // listar um filme pelo id
 app.MapGet("/api/locadoradefilmes/{id:int}", async (int id, ApiDbContext db) =>
 {
+    //find procura o filme pelo id, caso não encontre retorna null
     var filmeEncontrado = db.Filmes.Find(id);   
     if (filmeEncontrado is null)
     {
@@ -41,9 +39,6 @@ app.MapGet("/api/locadoradefilmes/{id:int}", async (int id, ApiDbContext db) =>
 //Adicionar um novo filme
 app.MapPost("/api/locadoradefilmes", async (FilmeEntity filmeDto, ApiDbContext db) =>
 {
-    
-    //var novoFilme = new Filme(novoId, filmeDto.Titulo, filmeDto.Genero, true);
-
     //salvando em memoria e preparando para salvar em banco de dados
     db.Filmes.Add(filmeDto);
     //salvando no banco de dados
@@ -52,28 +47,28 @@ app.MapPost("/api/locadoradefilmes", async (FilmeEntity filmeDto, ApiDbContext d
 });
 
 //Atualizar um filme
-app.MapPut("/api/locadoradefilmes/{id:int}", (int id, FilmeAtualizadoDto filmeatualAtualizado) =>
+app.MapPut("/api/locadoradefilmes/{id:int}", async(int id, FilmeEntity filmeatualAtualizado, ApiDbContext db) =>
 {
-    int indice = filmes.FindIndex(filmedaLista => filmedaLista.Id == id);
-    if (indice == -1)
-    {
-        return Results.NotFound();
-    }
+    var filmeExistente = await db.Filmes.FindAsync(id);
+    if(filmeExistente is  null) return Results.NotFound();
+    filmeExistente.Titulo = filmeatualAtualizado.Titulo;
+    filmeExistente.Genero = filmeatualAtualizado.Genero;
+    filmeExistente.Disponivel = filmeatualAtualizado.Disponivel;
 
-    var filmeAtualizado = new Filme(id, filmeatualAtualizado.Titulo, filmeatualAtualizado.Genero, filmeatualAtualizado.Disponivel);
-    filmes[indice] = filmeAtualizado;
-    return Results.Ok(filmeAtualizado);
+    await db.SaveChangesAsync();
+    return Results.Ok(filmeExistente);
+    
+
 });
 
-app.MapDelete("/api/locadoradefilmes/{id:int}", (int id) =>
+app.MapDelete("/api/locadoradefilmes/{id:int}", async (int id, ApiDbContext db) =>
 {
-    int indice = filmes.FindIndex(filmesdaLista => filmesdaLista.Id == id);
-    if (indice == -1)
-    {
-        return Results.NotFound();
-    }
+    var filmes = await db.Filmes.FindAsync(id);
+    if(filmes is  null) return Results.NotFound();
 
-    filmes.RemoveAt(indice);
+
+    db.Filmes.Remove(filmes);
+    await db.SaveChangesAsync();
     return Results.NoContent();
 });
 
@@ -98,8 +93,4 @@ class ApiDbContext : DbContext
     public DbSet<FilmeEntity> Filmes => Set<FilmeEntity>();
 }
 
-record Filme(int Id, string Titulo,string Genero, bool Disponivel);
 
-record FilmeDto(string Titulo, string Genero);
-
-record FilmeAtualizadoDto(string Titulo, string Genero, bool Disponivel);

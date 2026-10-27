@@ -1,0 +1,28 @@
+//lista de filmes inicial do projeto
+var filmes = new List<Filme>
+{
+    new Filme(1,"As branquelas", "Comedia", true),
+    new Filme(2,"O poderoso chefão", "Drama", true),
+    new Filme(3,"Ponyo","Animação", false),
+};
+
+app.put{
+    
+    //codigo antigo
+    //int indice = filmes.FindIndex(filmedaLista => filmedaLista.Id == id);
+    //if (indice == -1)
+    //{
+    //    return Results.NotFound();
+    //}
+
+    //var filmeAtualizado = new Filme(id, filmeatualAtualizado.Titulo, filmeatualAtualizado.Genero, filmeatualAtualizado.Disponivel);
+    filmes[indice] = filmeAtualizado;
+    return Results.Ok(filmeAtualizado);
+}
+
+
+record Filme(int Id, string Titulo,string Genero, bool Disponivel);
+
+record FilmeDto(string Titulo, string Genero);
+
+record FilmeAtualizadoDto(string Titulo, string Genero, bool Disponivel);

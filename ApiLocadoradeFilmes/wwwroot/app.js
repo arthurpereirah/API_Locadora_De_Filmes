@@ -1,26 +1,30 @@
 /**
- * CineLocadora - Script da Interface de Demonstração
- * JavaScript Puro (Sem dependências, bibliotecas ou conexão com API)
+ * CineLocadora - Script da Interface Integrada à API
+ * JavaScript Puro (Sem dependências, frameworks ou dados fictícios)
  * 
- * Todas as operações atuam exclusivamente no estado em memória deste script.
+ * Comunicação direta com a API REST:
+ * - GET    /api/locadoradefilmes
+ * - GET    /api/locadoradefilmes/{id}
+ * - POST   /api/locadoradefilmes
+ * - PUT    /api/locadoradefilmes/{id}
+ * - DELETE /api/locadoradefilmes/{id}
  */
 
 'use strict';
 
-// --- Dados Fictícios Iniciais para Demonstração Local ---
-const DADOS_INICIAIS = [
-  { id: 1, titulo: 'As Branquelas', genero: 'Comédia', disponivel: true },
-  { id: 2, titulo: 'O Poderoso Chefão', genero: 'Drama', disponivel: true },
-  { id: 3, titulo: 'Ponyo', genero: 'Animação', disponivel: false },
-  { id: 4, titulo: 'Matrix', genero: 'Ficção Científica', disponivel: true }
-];
+// --- Constantes da API ---
+const API_URL = '/api/locadoradefilmes';
 
-// --- Estado da Aplicação em Memória ---
-let filmes = [...DADOS_INICIAIS];
-let filmeEmEdicaoId = null; // null = modo criação; número = ID do filme em edição
+// --- Estado da Aplicação ---
+let filmes = [];
+let filmeEmEdicaoId = null; // null = novo cadastro; number = ID do filme em edição
+let carregando = false;
 
 // --- Referências aos Elementos do DOM ---
 const elements = {
+  // Cabeçalho e Status da API
+  apiStatusText: document.getElementById('api-status-text'),
+
   // Formulário e Campos
   form: document.getElementById('filme-form'),
   formHeading: document.getElementById('form-heading'),
@@ -37,23 +41,32 @@ const elements = {
   btnReset: document.getElementById('btn-reset'),
   
   // Listagem e Filtro
+  tableContainer: document.getElementById('table-container'),
   tbody: document.getElementById('filmes-tbody'),
   totalBadge: document.getElementById('filmes-total'),
+  btnRecarregar: document.getElementById('btn-recarregar'),
   buscaInput: document.getElementById('busca-input'),
   btnLimparBusca: document.getElementById('btn-limpar-busca'),
+  
+  // Estados Visuais (Loading, Erro, Vazio)
+  loadingState: document.getElementById('loading-state'),
+  loadingText: document.getElementById('loading-text'),
+  errorState: document.getElementById('error-state'),
+  errorMessage: document.getElementById('error-message'),
+  btnTentarNovamente: document.getElementById('btn-tentar-novamente'),
   emptyState: document.getElementById('empty-state'),
   emptyMessage: document.getElementById('empty-message'),
   
-  // Alertas
+  // Container de Alertas
   alertContainer: document.getElementById('alert-container')
 };
 
-// --- Funções Auxiliares de Notificação ---
+// --- Funções Auxiliares de Feedback e Notificações ---
 
 /**
- * Exibe mensagem de feedback visual e acessível para o usuário.
- * @param {string} mensagem - Texto da mensagem.
- * @param {'success'|'info'|'warning'|'danger'} tipo - Tipo do alerta.
+ * Exibe alertas temporários com texto puro.
+ * @param {string} mensagem - Texto do alerta.
+ * @param {'success'|'info'|'warning'|'danger'} tipo - Tipo visual do alerta.
  */
 function mostrarAlerta(mensagem, tipo = 'success') {
   elements.alertContainer.innerHTML = '';
@@ -68,7 +81,7 @@ function mostrarAlerta(mensagem, tipo = 'success') {
   btnClose.type = 'button';
   btnClose.className = 'alert-close';
   btnClose.setAttribute('aria-label', 'Fechar notificação');
-  btnClose.innerHTML = '&times;';
+  btnClose.textContent = '×';
   btnClose.addEventListener('click', () => alertDiv.remove());
 
   alertDiv.appendChild(spanText);
@@ -83,30 +96,57 @@ function mostrarAlerta(mensagem, tipo = 'success') {
   }, 5000);
 }
 
-// --- Funções de Renderização da Listagem ---
+/**
+ * Controla os estados de carregamento da interface.
+ * @param {boolean} ativo - Indica se o carregamento está em andamento.
+ * @param {string} [texto='Consultando catálogo na API...'] - Mensagem informativa.
+ */
+function setCarregando(ativo, texto = 'Consultando catálogo na API...') {
+  carregando = ativo;
+  
+  if (ativo) {
+    elements.loadingText.textContent = texto;
+    elements.loadingState.style.display = 'flex';
+    elements.btnSubmit.disabled = true;
+    elements.btnReset.disabled = true;
+    elements.btnCancel.disabled = true;
+    if (elements.btnRecarregar) elements.btnRecarregar.disabled = true;
+  } else {
+    elements.loadingState.style.display = 'none';
+    elements.btnSubmit.disabled = false;
+    elements.btnReset.disabled = false;
+    elements.btnCancel.disabled = false;
+    if (elements.btnRecarregar) elements.btnRecarregar.disabled = false;
+  }
+}
+
+// --- Renderização Segura com textContent ---
 
 /**
- * Renderiza a lista de filmes na tabela com dados locais.
- * @param {Array} listaFilmes - Coleção de filmes para exibir.
+ * Renderiza os filmes na tabela inserindo todos os valores com textContent.
+ * @param {Array} listaFilmes - Filmes a serem exibidos.
  */
 function renderizarTabela(listaFilmes = filmes) {
   elements.tbody.innerHTML = '';
   
-  // Atualiza badge de total
   const total = listaFilmes.length;
   elements.totalBadge.textContent = `Total: ${total} ${total === 1 ? 'filme' : 'filmes'}`;
 
+  // Se não houver itens para exibir
   if (total === 0) {
+    elements.tableContainer.style.display = 'none';
     elements.emptyState.style.display = 'block';
+
     if (elements.buscaInput.value.trim() !== '') {
       elements.emptyMessage.textContent = 'Nenhum filme localizado com o termo pesquisado.';
     } else {
-      elements.emptyMessage.textContent = 'Nenhum filme cadastrado na demonstração.';
+      elements.emptyMessage.textContent = 'Nenhum filme cadastrado na locadora.';
     }
     return;
   }
 
   elements.emptyState.style.display = 'none';
+  elements.tableContainer.style.display = 'block';
 
   listaFilmes.forEach(filme => {
     const tr = document.createElement('tr');
@@ -114,22 +154,22 @@ function renderizarTabela(listaFilmes = filmes) {
       tr.classList.add('row-selected');
     }
 
-    // Coluna ID
+    // Coluna ID (textContent)
     const tdId = document.createElement('td');
     tdId.className = 'td-id';
-    tdId.textContent = filme.id;
+    tdId.textContent = String(filme.id);
 
-    // Coluna Título
+    // Coluna Título (textContent)
     const tdTitulo = document.createElement('td');
     tdTitulo.className = 'td-titulo';
-    tdTitulo.textContent = filme.titulo;
+    tdTitulo.textContent = String(filme.titulo ?? '');
 
-    // Coluna Gênero
+    // Coluna Gênero (textContent)
     const tdGenero = document.createElement('td');
     tdGenero.className = 'td-genero';
-    tdGenero.textContent = filme.genero;
+    tdGenero.textContent = String(filme.genero ?? '');
 
-    // Coluna Status (Disponível ou Indisponível)
+    // Coluna Status (textContent)
     const tdStatus = document.createElement('td');
     const badgeStatus = document.createElement('span');
     badgeStatus.className = `badge-status ${filme.disponivel ? 'badge-disponivel' : 'badge-indisponivel'}`;
@@ -153,7 +193,7 @@ function renderizarTabela(listaFilmes = filmes) {
     const btnEditar = document.createElement('button');
     btnEditar.type = 'button';
     btnEditar.className = 'btn btn-action-edit btn-sm';
-    btnEditar.setAttribute('aria-label', `Visualizar e editar o filme "${filme.titulo}"`);
+    btnEditar.setAttribute('aria-label', `Visualizar e editar filme ${filme.titulo}`);
     btnEditar.textContent = 'Visualizar / Editar';
     btnEditar.addEventListener('click', () => carregarFilmeParaEdicao(filme.id));
 
@@ -161,15 +201,15 @@ function renderizarTabela(listaFilmes = filmes) {
     const btnExcluir = document.createElement('button');
     btnExcluir.type = 'button';
     btnExcluir.className = 'btn btn-action-delete btn-sm';
-    btnExcluir.setAttribute('aria-label', `Excluir o filme "${filme.titulo}"`);
+    btnExcluir.setAttribute('aria-label', `Excluir filme ${filme.titulo}`);
     btnExcluir.textContent = 'Excluir';
-    btnExcluir.addEventListener('click', () => excluirFilmeLocal(filme.id));
+    btnExcluir.addEventListener('click', () => excluirFilme(filme.id));
 
     divAcoes.appendChild(btnEditar);
     divAcoes.appendChild(btnExcluir);
     tdAcoes.appendChild(divAcoes);
 
-    // Monta a linha
+    // Adiciona todas as células à linha
     tr.appendChild(tdId);
     tr.appendChild(tdTitulo);
     tr.appendChild(tdGenero);
@@ -180,10 +220,210 @@ function renderizarTabela(listaFilmes = filmes) {
   });
 }
 
-// --- Operações do Formulário (Visualizar, Adicionar, Atualizar, Deletar) ---
+// --- Operações CRUD Integradas com a API ---
 
 /**
- * Limpa mensagens de erro de validação do formulário.
+ * Operação 1: Listar filmes (GET /api/locadoradefilmes).
+ */
+async function listarFilmes() {
+  setCarregando(true, 'Consultando catálogo na API...');
+  elements.errorState.style.display = 'none';
+
+  try {
+    const resposta = await fetch(API_URL);
+    
+    if (!resposta.ok) {
+      throw new Error(`Falha ao obter filmes da API (Status HTTP: ${resposta.status}).`);
+    }
+
+    const dados = await resposta.json();
+    filmes = Array.isArray(dados) ? dados : [];
+    aplicarFiltroAtual();
+  } catch (erro) {
+    console.error('Erro na requisição GET /api/locadoradefilmes:', erro);
+    elements.tableContainer.style.display = 'none';
+    elements.emptyState.style.display = 'none';
+    elements.errorState.style.display = 'flex';
+    elements.errorMessage.textContent = erro.message || 'Não foi possível se comunicar com o backend.';
+    mostrarAlerta(erro.message || 'Erro de conexão com a API.', 'danger');
+  } finally {
+    setCarregando(false);
+  }
+}
+
+/**
+ * Operação 2: Buscar filme por ID para visualização e edição (GET /api/locadoradefilmes/{id}).
+ * @param {number} id - Identificador do filme.
+ */
+async function carregarFilmeParaEdicao(id) {
+  limparErrosValidacao();
+  setCarregando(true, 'Buscando detalhes do filme na API...');
+
+  try {
+    const resposta = await fetch(`${API_URL}/${id}`);
+    
+    if (!resposta.ok) {
+      throw new Error(`Filme ID ${id} não localizado na API (Status HTTP: ${resposta.status}).`);
+    }
+
+    const filme = await resposta.json();
+    filmeEmEdicaoId = filme.id;
+
+    // Preenche os campos do formulário
+    elements.campoId.value = String(filme.id);
+    elements.campoTitulo.value = String(filme.titulo ?? '');
+    elements.campoGenero.value = String(filme.genero ?? '');
+    elements.campoDisponivel.value = filme.disponivel ? 'true' : 'false';
+
+    // Alterna estado visual do formulário para edição
+    elements.formHeading.textContent = `Editar Filme (ID: ${filme.id})`;
+    elements.formModeBadge.textContent = 'Modo Edição';
+    elements.formModeBadge.className = 'mode-badge mode-edicao';
+    elements.btnSubmitText.textContent = 'Salvar Alterações';
+    elements.btnCancel.style.display = 'inline-flex';
+
+    // Foco para digitação imediata
+    elements.campoTitulo.focus();
+
+    // Atualiza tabela para destacar a linha em edição
+    aplicarFiltroAtual();
+
+    mostrarAlerta(`Filme "${filme.titulo}" carregado no formulário para edição.`, 'info');
+  } catch (erro) {
+    console.error(`Erro na requisição GET /api/locadoradefilmes/${id}:`, erro);
+    mostrarAlerta(erro.message || 'Não foi possível carregar os dados do filme.', 'danger');
+  } finally {
+    setCarregando(false);
+  }
+}
+
+/**
+ * Operação 3 & 4: Criar ou Atualizar filme (POST /api/locadoradefilmes ou PUT /api/locadoradefilmes/{id}).
+ */
+async function tratarEnvioFormulario(event) {
+  event.preventDefault();
+
+  if (!validarFormulario()) {
+    mostrarAlerta('Preencha os campos obrigatórios antes de salvar.', 'warning');
+    return;
+  }
+
+  const titulo = elements.campoTitulo.value.trim();
+  const genero = elements.campoGenero.value.trim();
+  const disponivel = elements.campoDisponivel.value === 'true';
+
+  const payload = {
+    titulo: titulo,
+    genero: genero,
+    disponivel: disponivel
+  };
+
+  if (filmeEmEdicaoId === null) {
+    // --- CRIAR NOVO FILME (POST) ---
+    setCarregando(true, 'Cadastrando filme na API...');
+
+    try {
+      const resposta = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resposta.ok) {
+        throw new Error(`Falha ao cadastrar filme na API (Status HTTP: ${resposta.status}).`);
+      }
+
+      const filmeCriado = await resposta.json().catch(() => null);
+      const nomeFilme = filmeCriado?.titulo || titulo;
+
+      mostrarAlerta(`Filme "${nomeFilme}" cadastrado com sucesso!`, 'success');
+      cancelarEdicao();
+
+      // Recarrega os dados da API após gravação
+      await listarFilmes();
+    } catch (erro) {
+      console.error('Erro na requisição POST /api/locadoradefilmes:', erro);
+      mostrarAlerta(erro.message || 'Erro ao cadastrar filme.', 'danger');
+    } finally {
+      setCarregando(false);
+    }
+  } else {
+    // --- ATUALIZAR FILME EXISTENTE (PUT) ---
+    const idAtualizar = filmeEmEdicaoId;
+    setCarregando(true, `Atualizando filme ID ${idAtualizar} na API...`);
+
+    try {
+      const resposta = await fetch(`${API_URL}/${idAtualizar}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!resposta.ok) {
+        throw new Error(`Falha ao atualizar filme ID ${idAtualizar} na API (Status HTTP: ${resposta.status}).`);
+      }
+
+      mostrarAlerta(`Filme "${titulo}" (ID: ${idAtualizar}) atualizado com sucesso!`, 'success');
+      cancelarEdicao();
+
+      // Recarrega os dados da API após gravação
+      await listarFilmes();
+    } catch (erro) {
+      console.error(`Erro na requisição PUT /api/locadoradefilmes/${idAtualizar}:`, erro);
+      mostrarAlerta(erro.message || 'Erro ao atualizar filme.', 'danger');
+    } finally {
+      setCarregando(false);
+    }
+  }
+}
+
+/**
+ * Operação 5: Excluir filme (DELETE /api/locadoradefilmes/{id}).
+ * @param {number} id - Identificador do filme a remover.
+ */
+async function excluirFilme(id) {
+  const filme = filmes.find(f => f.id === id);
+  const titulo = filme ? filme.titulo : `ID ${id}`;
+
+  const confirmou = window.confirm(`Deseja realmente excluir o filme "${titulo}" da locadora?`);
+  if (!confirmou) return;
+
+  setCarregando(true, `Excluindo filme ID ${id} na API...`);
+
+  try {
+    const resposta = await fetch(`${API_URL}/${id}`, {
+      method: 'DELETE'
+    });
+
+    if (!resposta.ok) {
+      throw new Error(`Falha ao excluir filme ID ${id} na API (Status HTTP: ${resposta.status}).`);
+    }
+
+    mostrarAlerta(`Filme "${titulo}" excluído com sucesso!`, 'danger');
+
+    // Se o filme excluído estava aberto em edição, cancela o formulário
+    if (filmeEmEdicaoId === id) {
+      cancelarEdicao();
+    }
+
+    // Recarrega os dados da API após gravação
+    await listarFilmes();
+  } catch (erro) {
+    console.error(`Erro na requisição DELETE /api/locadoradefilmes/${id}:`, erro);
+    mostrarAlerta(erro.message || 'Erro ao excluir filme.', 'danger');
+  } finally {
+    setCarregando(false);
+  }
+}
+
+// --- Validação e Controle do Formulário ---
+
+/**
+ * Limpa erros de validação dos campos.
  */
 function limparErrosValidacao() {
   elements.campoTitulo.classList.remove('input-error');
@@ -193,80 +433,25 @@ function limparErrosValidacao() {
 }
 
 /**
- * Preenche o formulário com dados do filme selecionado (modo edição/visualização).
- * @param {number} id - Identificador do filme.
- */
-function carregarFilmeParaEdicao(id) {
-  const filme = filmes.find(f => f.id === id);
-  if (!filme) {
-    mostrarAlerta('Filme não encontrado na lista de demonstração.', 'warning');
-    return;
-  }
-
-  limparErrosValidacao();
-  filmeEmEdicaoId = filme.id;
-
-  // Atualiza campos
-  elements.campoId.value = String(filme.id);
-  elements.campoTitulo.value = filme.titulo;
-  elements.campoGenero.value = filme.genero;
-  elements.campoDisponivel.value = filme.disponivel ? 'true' : 'false';
-
-  // Atualiza estado visual do formulário
-  elements.formHeading.textContent = `Visualizar / Editar Filme (ID: ${filme.id})`;
-  elements.formModeBadge.textContent = 'Modo Edição';
-  elements.formModeBadge.className = 'mode-badge mode-edicao';
-  elements.btnSubmitText.textContent = 'Salvar Alterações';
-  elements.btnCancel.style.display = 'inline-flex';
-
-  // Foco no campo título para agilidade
-  elements.campoTitulo.focus();
-
-  // Re-renderiza para destacar a linha selecionada
-  aplicarFiltroAtual();
-
-  mostrarAlerta(`Filme "${filme.titulo}" carregado no formulário para visualização/edição.`, 'info');
-}
-
-/**
- * Cancela o modo de edição e restaura o formulário para cadastro novo.
- */
-function cancelarEdicao() {
-  filmeEmEdicaoId = null;
-  limparErrosValidacao();
-  elements.form.reset();
-  
-  elements.campoId.value = 'Automático (Modo Demonstração)';
-  elements.campoDisponivel.value = 'true';
-  elements.formHeading.textContent = 'Cadastrar Novo Filme';
-  elements.formModeBadge.textContent = 'Novo Cadastro';
-  elements.formModeBadge.className = 'mode-badge mode-novo';
-  elements.btnSubmitText.textContent = 'Adicionar Filme';
-  elements.btnCancel.style.display = 'none';
-
-  aplicarFiltroAtual();
-}
-
-/**
- * Valida os campos obrigatórios.
- * @returns {boolean} Retorna true se os campos forem válidos.
+ * Valida o preenchimento dos campos obrigatórios.
+ * @returns {boolean} True se válido.
  */
 function validarFormulario() {
   limparErrosValidacao();
   let valido = true;
 
-  const tituloValor = elements.campoTitulo.value.trim();
-  const generoValor = elements.campoGenero.value.trim();
+  const titulo = elements.campoTitulo.value.trim();
+  const genero = elements.campoGenero.value.trim();
 
-  if (!tituloValor) {
+  if (!titulo) {
     elements.campoTitulo.classList.add('input-error');
-    elements.erroTitulo.textContent = 'Por favor, informe o título do filme.';
+    elements.erroTitulo.textContent = 'Informe o título do filme.';
     valido = false;
   }
 
-  if (!generoValor) {
+  if (!genero) {
     elements.campoGenero.classList.add('input-error');
-    elements.erroGenero.textContent = 'Por favor, informe o gênero do filme.';
+    elements.erroGenero.textContent = 'Informe o gênero do filme.';
     valido = false;
   }
 
@@ -274,94 +459,68 @@ function validarFormulario() {
 }
 
 /**
- * Trata o envio do formulário (Adicionar ou Atualizar na memória local).
+ * Cancela a edição e restaura o formulário para cadastro novo.
  */
-function tratarEnvioFormulario(event) {
-  event.preventDefault();
+function cancelarEdicao() {
+  filmeEmEdicaoId = null;
+  limparErrosValidacao();
+  elements.form.reset();
+  
+  elements.campoId.value = '(Gerado automaticamente pela API)';
+  elements.campoDisponivel.value = 'true';
+  elements.formHeading.textContent = 'Cadastrar Novo Filme';
+  elements.formModeBadge.textContent = 'Novo Cadastro';
+  elements.formModeBadge.className = 'mode-badge mode-novo';
+  elements.btnSubmitText.textContent = 'Cadastrar Filme';
+  elements.btnCancel.style.display = 'none';
 
-  if (!validarFormulario()) {
-    mostrarAlerta('Verifique os campos obrigatórios antes de continuar.', 'warning');
-    return;
-  }
-
-  const titulo = elements.campoTitulo.value.trim();
-  const genero = elements.campoGenero.value.trim();
-  const disponivel = elements.campoDisponivel.value === 'true';
-
-  if (filmeEmEdicaoId === null) {
-    // Ação: Adicionar novo filme
-    const proximoId = filmes.length > 0 ? Math.max(...filmes.map(f => f.id)) + 1 : 1;
-    const novoFilme = { id: proximoId, titulo, genero, disponivel };
-    
-    filmes.push(novoFilme);
-    mostrarAlerta(`Filme "${novoFilme.titulo}" (ID: ${novoFilme.id}) adicionado com sucesso! (Modo demonstração)`, 'success');
-    cancelarEdicao();
-  } else {
-    // Ação: Atualizar filme existente
-    const index = filmes.findIndex(f => f.id === filmeEmEdicaoId);
-    if (index !== -1) {
-      filmes[index] = { id: filmeEmEdicaoId, titulo, genero, disponivel };
-      mostrarAlerta(`Filme "${titulo}" (ID: ${filmeEmEdicaoId}) atualizado com sucesso! (Modo demonstração)`, 'success');
-    }
-    cancelarEdicao();
-  }
-}
-
-/**
- * Remove um filme do estado local em memória após confirmação.
- * @param {number} id - ID do filme a excluir.
- */
-function excluirFilmeLocal(id) {
-  const filme = filmes.find(f => f.id === id);
-  if (!filme) return;
-
-  const confirmou = window.confirm(`Deseja realmente remover o filme "${filme.titulo}" (ID: ${filme.id}) da demonstração local?`);
-  if (!confirmou) return;
-
-  // Se o filme excluído estiver em edição, cancela o modo edição
-  if (filmeEmEdicaoId === id) {
-    cancelarEdicao();
-  }
-
-  filmes = filmes.filter(f => f.id !== id);
   aplicarFiltroAtual();
-  mostrarAlerta(`Filme "${filme.titulo}" removido da demonstração.`, 'danger');
 }
 
-// --- Funções de Busca e Filtro ---
+// --- Filtro Local de Busca ---
 
 /**
- * Filtra a lista pelo texto informado no campo de busca (título ou gênero).
+ * Filtra a lista já carregada da API por título ou gênero.
  */
 function aplicarFiltroAtual() {
   const termo = elements.buscaInput.value.trim().toLowerCase();
+  
   if (!termo) {
     renderizarTabela(filmes);
     return;
   }
 
-  const filmesFiltrados = filmes.filter(f => 
-    f.titulo.toLowerCase().includes(termo) ||
-    f.genero.toLowerCase().includes(termo)
+  const filtrados = filmes.filter(f => 
+    (f.titulo && f.titulo.toLowerCase().includes(termo)) ||
+    (f.genero && f.genero.toLowerCase().includes(termo))
   );
 
-  renderizarTabela(filmesFiltrados);
+  renderizarTabela(filtrados);
 }
 
-// --- Inicialização de Eventos ---
+// --- Inicialização de Eventos e Carga Inicial ---
 
 function inicializarEventos() {
   // Envio e cancelamento do formulário
   elements.form.addEventListener('submit', tratarEnvioFormulario);
   elements.btnCancel.addEventListener('click', cancelarEdicao);
   
-  // Limpeza rápida dos campos
+  // Limpeza dos campos
   elements.btnReset.addEventListener('click', () => {
     cancelarEdicao();
     mostrarAlerta('Formulário limpo.', 'info');
   });
 
-  // Filtro de pesquisa
+  // Botões de recarga e repetição
+  if (elements.btnRecarregar) {
+    elements.btnRecarregar.addEventListener('click', () => listarFilmes());
+  }
+
+  if (elements.btnTentarNovamente) {
+    elements.btnTentarNovamente.addEventListener('click', () => listarFilmes());
+  }
+
+  // Filtro de busca
   elements.buscaInput.addEventListener('input', aplicarFiltroAtual);
   elements.btnLimparBusca.addEventListener('click', () => {
     elements.buscaInput.value = '';
@@ -369,9 +528,9 @@ function inicializarEventos() {
     elements.buscaInput.focus();
   });
 
-  // Render inicial
-  renderizarTabela();
+  // Primeira carga dos dados reais vindos da API
+  listarFilmes();
 }
 
-// Inicializa quando o documento estiver pronto
+// Inicializa quando o DOM estiver pronto
 document.addEventListener('DOMContentLoaded', inicializarEventos);

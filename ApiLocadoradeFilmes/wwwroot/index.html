@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Locadora de Filmes - Demonstração</title>
+  <title>CineLocadora - Gerenciador de Filmes</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,25 +14,15 @@
         <span class="logo-icon" aria-hidden="true">🎬</span>
         <div>
           <h1 class="logo-title">CineLocadora</h1>
-          <p class="logo-subtitle">Painel de Demonstração de Filmes</p>
+          <p class="logo-subtitle">Sistema de Gerenciamento da Locadora de Filmes</p>
         </div>
       </div>
-      <div class="demo-tag" role="note" aria-label="Aviso de demonstração">
-        <span class="status-dot"></span> Modo Demonstração (Sem Conexão com API)
+      <div class="api-tag" role="status" aria-label="Status de conexão com a API">
+        <span class="status-dot status-dot-active" aria-hidden="true"></span>
+        <span id="api-status-text">Conectado à API</span>
       </div>
     </div>
   </header>
-
-  <!-- Banner Informativo de Contexto de Demonstração -->
-  <div class="demo-banner">
-    <div class="container demo-banner-content">
-      <span class="banner-icon" aria-hidden="true">ℹ️</span>
-      <p>
-        <strong>Ambiente de Demonstração Visual:</strong> Todas as operações (visualizar, adicionar, atualizar e deletar)
-        ocorrem apenas na memória do navegador utilizando dados fictícios locais. Nenhuma requisição é enviada ao backend.
-      </p>
-    </div>
-  </div>
 
   <!-- Conteúdo Principal -->
   <main class="container main-layout">
@@ -49,7 +39,7 @@
       <div class="card-body">
         <form id="filme-form" novalidate>
           
-          <!-- ID Simulado -->
+          <!-- ID do Filme -->
           <div class="form-group">
             <label for="filme-id">ID do Filme</label>
             <input 
@@ -57,11 +47,11 @@
               id="filme-id" 
               name="filme-id" 
               class="form-control input-readonly" 
-              value="Automático (Modo Demonstração)" 
+              value="(Gerado automaticamente pela API)" 
               readonly 
               aria-describedby="filme-id-help"
             >
-            <small id="filme-id-help" class="form-help">O identificador é gerado ou exibido automaticamente na simulação.</small>
+            <small id="filme-id-help" class="form-help">Identificador gerado pelo banco de dados da API no cadastro.</small>
           </div>
 
           <!-- Título -->
@@ -101,14 +91,14 @@
               <option value="true">Disponível</option>
               <option value="false">Indisponível</option>
             </select>
-            <small class="form-help">Selecione se o filme está disponível para locação imediata.</small>
+            <small class="form-help">Selecione se o filme está disponível para locação.</small>
           </div>
 
           <!-- Ações do Formulário -->
           <div class="form-actions">
             <button type="submit" id="btn-submit" class="btn btn-primary">
               <span class="btn-icon" aria-hidden="true">➕</span>
-              <span id="btn-submit-text">Adicionar Filme</span>
+              <span id="btn-submit-text">Cadastrar Filme</span>
             </button>
             <button type="button" id="btn-cancel" class="btn btn-secondary" style="display: none;">
               Cancelar Edição
@@ -126,10 +116,13 @@
       <div class="card-header list-header">
         <div>
           <h2 id="list-heading" class="card-title">Catálogo de Filmes</h2>
-          <p class="card-subtitle">Exibição de dados fictícios para demonstração da interface</p>
+          <p class="card-subtitle">Dados sincronizados em tempo real com a API</p>
         </div>
         <div class="header-stats">
           <span id="filmes-total" class="stat-badge">Total: 0</span>
+          <button type="button" id="btn-recarregar" class="btn btn-outline btn-sm" title="Recarregar catálogo da API">
+            <span aria-hidden="true">🔄</span> Recarregar
+          </button>
         </div>
       </div>
       
@@ -150,8 +143,24 @@
           <button type="button" id="btn-limpar-busca" class="btn btn-outline btn-sm">Limpar Filtro</button>
         </div>
 
+        <!-- Indicador de Carregamento (Loading) -->
+        <div id="loading-state" class="loading-state" style="display: none;" role="status" aria-live="polite">
+          <div class="spinner" aria-hidden="true"></div>
+          <p class="loading-text" id="loading-text">Consultando catálogo na API...</p>
+        </div>
+
+        <!-- Mensagem de Erro de Comunicação -->
+        <div id="error-state" class="error-state" style="display: none;" role="alert">
+          <span class="error-icon" aria-hidden="true">⚠️</span>
+          <div>
+            <p class="error-title">Falha na Comunicação com a API</p>
+            <p class="error-text" id="error-message">Não foi possível carregar os dados.</p>
+          </div>
+          <button type="button" id="btn-tentar-novamente" class="btn btn-outline btn-sm">Tentar Novamente</button>
+        </div>
+
         <!-- Tabela Responsiva de Filmes -->
-        <div class="table-responsive" tabindex="0" role="region" aria-label="Tabela de filmes cadastrados com rolagem horizontal se necessário">
+        <div id="table-container" class="table-responsive" tabindex="0" role="region" aria-label="Tabela de filmes cadastrados na API">
           <table class="data-table" id="tabela-filmes">
             <thead>
               <tr>
@@ -163,15 +172,15 @@
               </tr>
             </thead>
             <tbody id="filmes-tbody">
-              <!-- Renderizado dinamicamente pelo app.js -->
+              <!-- Renderizado dinamicamente pelo app.js usando estritamente textContent -->
             </tbody>
           </table>
         </div>
 
-        <!-- Estado Vazio (quando não houver filmes ou o filtro zerar) -->
+        <!-- Estado Vazio (quando não houver filmes cadastrados ou filtro zerar) -->
         <div id="empty-state" class="empty-state" style="display: none;">
           <span class="empty-icon" aria-hidden="true">🎞️</span>
-          <p class="empty-text" id="empty-message">Nenhum filme encontrado.</p>
+          <p class="empty-text" id="empty-message">Nenhum filme cadastrado na locadora.</p>
         </div>
       </div>
     </section>
@@ -181,8 +190,8 @@
   <!-- Rodapé -->
   <footer class="footer">
     <div class="container footer-content">
-      <p>CineLocadora &mdash; Interface de Demonstração (AP1)</p>
-      <p class="footer-note">Desenvolvido com HTML, CSS e JavaScript puros &bull; Sem dependências ou conexão com API</p>
+      <p>CineLocadora &mdash; Interface Integrada à API (AP1)</p>
+      <p class="footer-note">Desenvolvido com HTML, CSS e JavaScript puros &bull; Comunicação direta com a API REST</p>
     </div>
   </footer>
 
