@@ -116,14 +116,3 @@ Após iniciar a API, realize as operações pelo navegador e confirme ao menos u
 Persistência e reinicialização
 As operações de criação, atualização e exclusão usam SaveChangesAsync() do Entity Framework Core. Os registros não excluídos permanecem no arquivo SQLite após encerrar e iniciar novamente a aplicação. Para comprovar isso na avaliação, cadastre um filme, reinicie a API e confirme que o filme continua aparecendo na interface e na resposta da API.
 
-O banco SQLite local é criado na máquina durante a execução e não deve ser enviado ao repositório. As migrations versionadas permitem que o avaliador crie o banco a partir do código.
-Checklist antes da entrega
-- [ ] git status revisado; somente arquivos necessários estão sendo enviados.
-- [ ] dotnet build conclui sem erros.
-- [ ] dotnet ef database update prepara o banco usando as migrations versionadas.
-- [ ] Bruno contém GET da coleção, GET por ID, POST, PUT e DELETE, com URLs corretas.
-- [ ] Frontend testa cadastro, listagem, edição e exclusão com dados reais da API.
-- [ ] Testado 404 Not Found para um ID inexistente, incluindo um ID excluído.
-- [ ] Após reiniciar a API, pelo menos um registro não excluído continua disponível.
-- [ ] Vídeo público mostra backend e frontend juntos, operações e persistência, e pode ser aberto sem solicitar acesso.
-- [ ] Nenhum segredo, bin/, obj/ ou arquivo SQLite local foi incluído no commit.
