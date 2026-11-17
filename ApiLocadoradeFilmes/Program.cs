@@ -10,11 +10,29 @@ builder.Services.AddDbContext<ApiDbContext>(options =>
 
 var app = builder.Build();
 
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run( async context =>
+    {
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json";
+
+        await context.Response.WriteAsJsonAsync(new
+        {
+            mensagem = "Ocorreu um erro interno no servidor. Por favor, tente novamente mais tarde."
+        });
+    });
+}
+);
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+
+
 //tela inicial da api ao rodar o projeto
 //app.MapGet("/", () => "Api de locadora de filmes está no ar!");
+
 
 // listar todos os filmes cadastrados
 app.MapGet("/api/locadoradefilmes", async (ApiDbContext db) =>
