@@ -1,8 +1,11 @@
 # API Locadora de Filmes
 
 API REST para gerenciamento de filmes, desenvolvida em ASP.NET Core com .NET 10. Esta entrega evolui o projeto da AP1: substitui o armazenamento em memória por persistência em SQLite com Entity Framework Core e integra a interface web aos endpoints reais da API.
-Vídeo de demonstração — AP2
-Link: https://drive.google.com/drive/folders/1vxytn2Q7k8N0WoCxImFOTvL0CKtzT8ki?usp=sharing
+## Vídeos de demonstração
+
+
+### Avaliação (AS)
+- Link: https://drive.google.com/drive/folders/1Mg3FitDt3NAjT52TlRmtRZeU7_87yH9m?usp=sharing
 
 
 Tecnologias e requisitos
@@ -13,13 +16,49 @@ Tecnologias e requisitos
 - HTML, CSS e JavaScript no frontend, sem frameworks adicionais
 - Bruno para testar os endpoints (Collection em ../Bruno/)
 Estrutura do projeto
-- Program.cs: configuração da aplicação e endpoints HTTP.
-- FilmeEntity: modelo de dados do filme.
-- ApiDbContext: contexto do Entity Framework Core e conjunto Filmes.
-- Migrations/: migrations versionadas para criar/atualizar o banco.
-- wwwroot/: interface web (index.html, style.css e app.js) integrada à API.
-- appsettings.Development.json: string de conexão SQLite usada no ambiente de desenvolvimento.
-- ../Bruno/: Collection para testar a API.
+
+```text
+ApiLocadoradeFilmes/
+│
+├── Program.cs
+├── ApiLocadoradeFilmes.csproj
+│
+├── Models/
+│   └── Filme.cs
+│
+├── Dtos/
+│   └── FilmeEntrada.cs
+│
+├── Data/
+│   └── ApiDbContext.cs
+│
+├── Migrations/
+│   ├── 20260922232725_BancoInicial.cs
+│   ├── 20260922232725_BancoInicial.Designer.cs
+│   └── ApiDbContextModelSnapshot.cs
+│
+├── Properties/
+│   └── launchSettings.json
+│
+├── wwwroot/
+│   ├── app.js
+│   ├── index.html
+│   └── style.css
+│
+├── appsettings.json
+├── appsettings.Development.json
+└── README.md
+```
+
+### Responsabilidades dos componentes:
+- **`Program.cs`**: Ponto de entrada da aplicação ASP.NET Core Minimal APIs. Responsável pela inicialização e configuração dos serviços (CORS, DbContext, arquivos estáticos), registro do pipeline de middlewares (incluindo o middleware de tratamento de exceções) e mapeamento das rotas HTTP (endpoints GET, POST, PUT e DELETE).
+- **Pasta `Models/` (`Models/Filme.cs`)**: Contém a entidade de domínio `FilmeEntity`, representando o modelo de dados persistido no banco SQLite via Entity Framework Core.
+- **Pasta `Dtos/` (`Dtos/FilmeEntrada.cs`)**: Contém o Data Transfer Object `FilmeEntrada` utilizado para receber dados de entrada nas requisições HTTP (POST e PUT), desacoplando a entrada do modelo de domínio e omitindo o identificador gerado pelo banco.
+- **Pasta `Data/` (`Data/ApiDbContext.cs`)**: Contém o contexto do Entity Framework Core (`ApiDbContext`), gerenciando a conexão com o banco e o conjunto `DbSet<FilmeEntity> Filmes`.
+- **Pasta `Migrations/`**: Localização das migrations versionadas do Entity Framework Core (`Migrations/`) que definem o histórico e o esquema do banco de dados SQLite.
+- **Pasta `wwwroot/`**: Localização do frontend da aplicação (`wwwroot/`), contendo a interface web (`index.html`, `style.css` e `app.js`) servida diretamente pela aplicação e integrada aos endpoints REST.
+- **`appsettings.Development.json`**: Contém a string de conexão SQLite utilizada no ambiente de desenvolvimento (`DefaultConnection`).
+- **`../Bruno/`**: Collection para testes das rotas e requisições HTTP com Bruno.
 Preparar e executar
 Abra um terminal na pasta ApiLocadoradeFilmes, onde está o arquivo ApiLocadoradeFilmes.csproj.
 1. Restaurar dependências e compilar
@@ -58,12 +97,13 @@ Cada filme possui as seguintes propriedades JSON:
 - disponivel: indica se o filme está disponível; novos registros usam true por padrão quando o campo não é informado.
 Rotas da API
 A rota base é /api/locadoradefilmes.
-Método	Rota	Descrição	Resposta esperada
-GET	/api/locadoradefilmes	Lista todos os filmes	200 OK
-GET	/api/locadoradefilmes/{id}	Busca um filme por ID	200 OK ou 404 Not Found
-POST	/api/locadoradefilmes	Cadastra um filme	201 Created
-PUT	/api/locadoradefilmes/{id}	Atualiza um filme existente	200 OK ou 404 Not Found
-DELETE	/api/locadoradefilmes/{id}	Exclui um filme	204 No Content ou 404 Not Found
+| Método | Rota | Descrição | Resposta esperada |
+|---|---|---|---|
+| GET | `/api/locadoradefilmes` | Lista todos os filmes | 200 OK |
+| GET | `/api/locadoradefilmes/{id}` | Busca um filme por ID | 200 OK ou 404 Not Found |
+| POST | `/api/locadoradefilmes` | Cadastra um filme | 201 Created |
+| PUT | `/api/locadoradefilmes/{id}` | Atualiza um filme existente | 200 OK ou 404 Not Found |
+| DELETE | `/api/locadoradefilmes/{id}` | Exclui um filme | 204 No Content ou 404 Not Found |
 
 
 Exemplos de requisições

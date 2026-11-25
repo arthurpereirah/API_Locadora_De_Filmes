@@ -1,5 +1,8 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using ApiLocadoradeFilmes.Data;
+using ApiLocadoradeFilmes.Dtos;
+using ApiLocadoradeFilmes.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,34 +58,39 @@ app.MapGet("/api/locadoradefilmes/{id:int}", async (int id, ApiDbContext db) =>
 );
 
 //Adicionar um novo filme
-app.MapPost("/api/locadoradefilmes", async (FilmeEntity filmeDto, ApiDbContext db) =>
+app.MapPost("/api/locadoradefilmes", async (FilmeEntrada filmeDto, ApiDbContext db) =>
 {
+    var filme = new FilmeEntity
+    {
+        Titulo = filmeDto.Titulo,
+        Genero = filmeDto.Genero,
+        Disponivel = filmeDto.Disponivel
+    };
+
     //salvando em memoria e preparando para salvar em banco de dados
-    db.Filmes.Add(filmeDto);
+    db.Filmes.Add(filme);
     //salvando no banco de dados
     await db.SaveChangesAsync();
-    return Results.Created($"/api/locadoradefilmes/{filmeDto.Id}", filmeDto);
+    return Results.Created($"/api/locadoradefilmes/{filme.Id}", filme);
 });
 
 //Atualizar um filme
-app.MapPut("/api/locadoradefilmes/{id:int}", async(int id, FilmeEntity filmeatualAtualizado, ApiDbContext db) =>
+app.MapPut("/api/locadoradefilmes/{id:int}", async(int id, FilmeEntrada filmeatualAtualizado, ApiDbContext db) =>
 {
     var filmeExistente = await db.Filmes.FindAsync(id);
-    if(filmeExistente is  null) return Results.NotFound();
+    if(filmeExistente is null) return Results.NotFound();
     filmeExistente.Titulo = filmeatualAtualizado.Titulo;
     filmeExistente.Genero = filmeatualAtualizado.Genero;
     filmeExistente.Disponivel = filmeatualAtualizado.Disponivel;
 
     await db.SaveChangesAsync();
     return Results.Ok(filmeExistente);
-    
-
 });
 
 app.MapDelete("/api/locadoradefilmes/{id:int}", async (int id, ApiDbContext db) =>
 {
     var filmes = await db.Filmes.FindAsync(id);
-    if(filmes is  null) return Results.NotFound();
+    if(filmes is null) return Results.NotFound();
 
 
     db.Filmes.Remove(filmes);
@@ -93,22 +101,3 @@ app.MapDelete("/api/locadoradefilmes/{id:int}", async (int id, ApiDbContext db) 
 
 
 app.Run();
-
-class FilmeEntity
-{
-    public int Id { get; set; }
-    public string Titulo { get; set; } = string.Empty;
-    public string Genero { get; set; } = string.Empty;
-    public bool Disponivel { get; set; } = true;
-}
-
-class ApiDbContext : DbContext
-{
-    public ApiDbContext(DbContextOptions<ApiDbContext> options) : base(options)
-    {
-    }
-
-    public DbSet<FilmeEntity> Filmes => Set<FilmeEntity>();
-}
-
-
